@@ -47,33 +47,18 @@ export default function SettingsPage() {
   };
 
   const handleBrowseFolder = async (key: keyof AppSettings['paths']) => {
-    // Check if the File System Access API is available
-    if ('showDirectoryPicker' in window) {
-      try {
-        const dirHandle = await (window as any).showDirectoryPicker({
-          mode: 'read',
-        });
-        // Get the directory name/path
-        handlePathChange(key, dirHandle.name);
-        toast({
-          title: "Folder selected",
-          description: `Selected: ${dirHandle.name}`,
-        });
-      } catch (err: any) {
-        // User cancelled the picker
-        if (err.name !== 'AbortError') {
-          toast({
-            title: "Could not select folder",
-            description: err.message,
-            variant: "destructive",
-          });
-        }
-      }
-    } else {
+    // Prompt user to enter the full path
+    const currentPath = settings.paths[key];
+    const newPath = window.prompt(
+      'Enter the full folder path:\n\nExamples:\n• C:\\Users\\you\\loras\n• /home/you/loras\n• ./loras (relative to project)',
+      currentPath
+    );
+
+    if (newPath !== null && newPath.trim() !== '') {
+      handlePathChange(key, newPath.trim());
       toast({
-        title: "Not supported",
-        description: "Folder picker not available. Please type the path manually.",
-        variant: "destructive",
+        title: "Path updated",
+        description: `Set to: ${newPath.trim()}`,
       });
     }
   };
@@ -152,7 +137,7 @@ export default function SettingsPage() {
               Output Paths
             </CardTitle>
             <CardDescription>
-              Configure where your generated content is saved. Use relative paths from the project root or absolute paths.
+              Enter full paths where your content is stored. Use absolute paths (C:\Users\...) or relative paths from the project root (./loras).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
