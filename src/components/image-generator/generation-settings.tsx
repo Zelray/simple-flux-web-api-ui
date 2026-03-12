@@ -8,6 +8,7 @@ import { Model, ModelParameter } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { LoraSelector } from "@/components/lora-selector";
 
 interface GenerationSettingsProps {
   prompt: string;
@@ -37,6 +38,31 @@ export function GenerationSettings({
     };
 
     switch (param.type) {
+      case 'string':
+        // Handle string inputs like image_url
+        if (param.key === 'image_url') {
+          return (
+            <div key={param.key} className="space-y-1">
+              <Label htmlFor={param.key} className="text-sm">
+                {param.key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                {param.required && <span className="text-destructive ml-1">*</span>}
+              </Label>
+              <Input
+                id={param.key}
+                type="url"
+                placeholder="Enter image URL..."
+                value={value || ''}
+                className="h-8"
+                onChange={(e) => onChange(e.target.value)}
+              />
+              {param.description && (
+                <p className="text-xs text-muted-foreground">{param.description}</p>
+              )}
+            </div>
+          );
+        }
+        return null;
+
       case 'enum':
         return (
           <div key={param.key} className="space-y-1">
@@ -128,75 +154,15 @@ export function GenerationSettings({
       
       case 'array':
         if (param.key === 'loras') {
-          const loras = value as Array<{ path: string; scale: number }> || [];
-          const MAX_LORAS = 3;
-          
+          const loras = value as Array<{ path: string; scale?: number }> || [];
+
           return (
-            <div key={param.key} className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm">LoRA Weights ({loras.length}/{MAX_LORAS})</Label>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onChange([...loras, { path: '', scale: 1 }])}
-                  disabled={loras.length >= MAX_LORAS}
-                >
-                  Add LoRA
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {loras.map((lora, index) => (
-                  <div key={index} className="p-2 border rounded-lg space-y-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <Label className="text-sm">LoRA #{index + 1}</Label>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2"
-                        onClick={() => {
-                          const newLoras = [...loras];
-                          newLoras.splice(index, 1);
-                          onChange(newLoras);
-                        }}
-                      >
-                        ×
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-[2fr,1fr] gap-2">
-                      <div>
-                        <Input
-                          placeholder="Enter LoRA URL..."
-                          value={lora.path}
-                          className="h-7"
-                          onChange={(e) => {
-                            const newLoras = [...loras];
-                            newLoras[index] = { ...lora, path: e.target.value };
-                            onChange(newLoras);
-                          }}
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="range"
-                          min={0}
-                          max={2}
-                          step={0.1}
-                          value={lora.scale}
-                          className="h-7"
-                          onChange={(e) => {
-                            const newLoras = [...loras];
-                            newLoras[index] = { ...lora, scale: Number(e.target.value) };
-                            onChange(newLoras);
-                          }}
-                        />
-                        <span className="text-sm w-8 text-right">
-                          {lora.scale.toFixed(1)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div key={param.key}>
+              <LoraSelector
+                value={loras}
+                onChange={onChange}
+                maxLoras={5}
+              />
             </div>
           );
         }
@@ -209,6 +175,7 @@ export function GenerationSettings({
 
   // Group parameters by type for more efficient layout
   const groupParameters = () => {
+    const stringParams: JSX.Element[] = [];
     const enumParams: JSX.Element[] = [];
     const booleanParams: JSX.Element[] = [];
     const numberParams: JSX.Element[] = [];
@@ -219,6 +186,9 @@ export function GenerationSettings({
       if (!rendered) return;
 
       switch (param.type) {
+        case 'string':
+          stringParams.push(rendered);
+          break;
         case 'enum':
           enumParams.push(rendered);
           break;
@@ -233,10 +203,10 @@ export function GenerationSettings({
       }
     });
 
-    return { enumParams, booleanParams, numberParams, otherParams };
+    return { stringParams, enumParams, booleanParams, numberParams, otherParams };
   };
 
-  const { enumParams, booleanParams, numberParams, otherParams } = groupParameters();
+  const { stringParams, enumParams, booleanParams, numberParams, otherParams } = groupParameters();
 
   return (
     <Card className="h-full">
@@ -255,7 +225,14 @@ export function GenerationSettings({
             className="min-h-[80px]"
           />
         </div>
-        
+
+        {/* String parameters (like image_url) */}
+        {stringParams.length > 0 && (
+          <div className="space-y-3">
+            {stringParams}
+          </div>
+        )}
+
         {/* Grid layout for enum parameters */}
         {enumParams.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

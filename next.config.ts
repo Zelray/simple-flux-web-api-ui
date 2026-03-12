@@ -8,6 +8,15 @@ const nextConfig: NextConfig = {
         hostname: 'fal.media',
         pathname: '/files/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'v3b.fal.media',
+        pathname: '/files/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.fal.media',
+      },
     ],
   },
 }

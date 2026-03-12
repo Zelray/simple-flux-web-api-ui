@@ -31,8 +31,8 @@ const ITEMS_PER_PAGE = 16;
 const AVAILABLE_MODELS = [flux_1_1_pro, flux_1_1_pro_ultra];
 
 const NSFW_OPTIONS = [
-  { value: "blur", label: "Blur NSFW" },
   { value: "show", label: "Show NSFW" },
+  { value: "blur", label: "Blur NSFW" },
   { value: "hide", label: "Hide NSFW" },
 ] as const;
 
@@ -65,7 +65,7 @@ export function GenerationsGallery({ generations }: GenerationsGalleryProps) {
   const [selectedGeneration, setSelectedGeneration] = useState<Generation | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedModels, setSelectedModels] = useState<string[]>(AVAILABLE_MODELS.map(m => m.id));
-  const [nsfwFilter, setNsfwFilter] = useState<NSFWFilter>("blur");
+  const [nsfwFilter, setNsfwFilter] = useState<NSFWFilter>("show");
   const [searchQuery, setSearchQuery] = useState("");
   const [localGenerations, setLocalGenerations] = useState<Generation[]>(generations);
 

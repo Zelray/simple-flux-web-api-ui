@@ -20,7 +20,7 @@ interface ErrorResponse {
 type GenerateImageResponse = SuccessResponse | ErrorResponse;
 
 export async function generateImage(
-  model: Model, 
+  model: Model,
   input: Record<string, any>,
   apiKey: string
 ): Promise<GenerateImageResponse> {
@@ -40,9 +40,42 @@ export async function generateImage(
       credentials: apiKey,
     });
 
+    // Clean up input parameters
+    const safeInput: Record<string, any> = { ...input };
+
+    // Handle safety settings
+    if ('enable_safety_checker' in safeInput) {
+      safeInput.enable_safety_checker = safeInput.enable_safety_checker ?? false;
+    }
+    if ('safety_tolerance' in safeInput) {
+      // Convert to number if it's a string
+      safeInput.safety_tolerance = parseInt(String(safeInput.safety_tolerance), 10) || 6;
+    }
+
+    // Remove empty loras array (causes validation error)
+    if (Array.isArray(safeInput.loras) && safeInput.loras.length === 0) {
+      delete safeInput.loras;
+    }
+    // Filter out loras with empty paths
+    if (Array.isArray(safeInput.loras)) {
+      safeInput.loras = safeInput.loras.filter((l: any) => l.path && l.path.trim() !== '');
+      if (safeInput.loras.length === 0) {
+        delete safeInput.loras;
+      }
+    }
+
+    // Remove undefined/null values
+    Object.keys(safeInput).forEach(key => {
+      if (safeInput[key] === undefined || safeInput[key] === null || safeInput[key] === '') {
+        delete safeInput[key];
+      }
+    });
+
+    console.log('📤 Clean input:', JSON.stringify(safeInput, null, 2));
+
     console.log('⏳ Subscribing to FAL model...');
     const result = await fal.subscribe(model.id, {
-      input,
+      input: safeInput,
       logs: true,
       onQueueUpdate: (update) => {
         console.log(`🔄 Queue Status: ${update.status}`);

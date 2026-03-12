@@ -2,19 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { ImageGenerator } from "@/components/image-generator";
-import { allModels } from "@/lib/models/registry";
+import { VideoGenerator } from "@/components/video-generator";
+import { allVideoModels } from "@/lib/models/registry";
 import { Model } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 
-// Default safety-permissive schema for dynamic models
-function createDynamicModel(modelId: string, title: string, schema?: any): Model {
+function createVideoModel(modelId: string, title: string, schema?: any): Model {
   const inputSchema = schema?.inputSchema || [];
 
-  // Ensure we have the required fields with safety defaults
   const hasPrompt = inputSchema.some((p: any) => p.key === 'prompt');
-  const hasSafetyChecker = inputSchema.some((p: any) => p.key === 'enable_safety_checker');
-  const hasSafetyTolerance = inputSchema.some((p: any) => p.key === 'safety_tolerance');
 
   const finalSchema = [...inputSchema];
 
@@ -23,40 +19,20 @@ function createDynamicModel(modelId: string, title: string, schema?: any): Model
       key: 'prompt',
       type: 'string',
       required: true,
-      description: 'The prompt to generate an image from',
+      description: 'The prompt to generate a video from',
     });
   }
 
-  // Add safety settings with permissive defaults
-  if (!hasSafetyChecker) {
+  // Add common video parameters if missing
+  const hasAspectRatio = inputSchema.some((p: any) => p.key === 'aspect_ratio');
+  if (!hasAspectRatio) {
     finalSchema.push({
-      key: 'enable_safety_checker',
-      type: 'boolean',
-      default: false,
-      description: 'Enable content safety checker',
-    });
-  } else {
-    // Override default to false
-    const idx = finalSchema.findIndex((p: any) => p.key === 'enable_safety_checker');
-    if (idx !== -1) {
-      finalSchema[idx] = { ...finalSchema[idx], default: false };
-    }
-  }
-
-  if (!hasSafetyTolerance) {
-    finalSchema.push({
-      key: 'safety_tolerance',
+      key: 'aspect_ratio',
       type: 'enum',
-      default: '6',
-      options: ['1', '2', '3', '4', '5', '6'],
-      description: 'Safety tolerance (1=strict, 6=permissive)',
+      default: '16:9',
+      options: ['16:9', '9:16', '1:1', '4:3', '3:4'],
+      description: 'Video aspect ratio',
     });
-  } else {
-    // Override default to 6 (most permissive)
-    const idx = finalSchema.findIndex((p: any) => p.key === 'safety_tolerance');
-    if (idx !== -1) {
-      finalSchema[idx] = { ...finalSchema[idx], default: '6' };
-    }
   }
 
   return {
@@ -67,7 +43,7 @@ function createDynamicModel(modelId: string, title: string, schema?: any): Model
   };
 }
 
-export default function FluxModelPage() {
+export default function VideoModelPage() {
   const params = useParams();
   const modelIdParam = params['model-id'] as string;
   const [model, setModel] = useState<Model | null>(null);
@@ -82,31 +58,17 @@ export default function FluxModelPage() {
       // Convert URL format back to model ID (__ becomes /)
       const modelId = modelIdParam.replace(/__/g, '/');
 
-      // First check if it's in our registry
-      const registryModel = allModels.find((m) => m.id === modelId);
+      // First check if it's in our video registry
+      const registryModel = allVideoModels.find((m) => m.id === modelId);
 
       if (registryModel) {
-        // Override safety defaults for registry models too
-        const updatedSchema = registryModel.inputSchema.map(param => {
-          if (param.key === 'enable_safety_checker') {
-            return { ...param, default: false };
-          }
-          if (param.key === 'safety_tolerance') {
-            return { ...param, default: '6' };
-          }
-          return param;
-        });
-
-        setModel({
-          ...registryModel,
-          inputSchema: updatedSchema,
-        });
+        setModel(registryModel);
         setLoading(false);
         return;
       }
 
+      // Otherwise fetch dynamically
       try {
-        // Fetch model info from FAL
         const [modelsRes, schemaRes] = await Promise.all([
           fetch(`/api/models?keywords=${encodeURIComponent(modelId.split('/').pop() || '')}`),
           fetch(`/api/schema?model_id=${encodeURIComponent(modelId)}`),
@@ -115,19 +77,17 @@ export default function FluxModelPage() {
         const models = await modelsRes.json();
         const schema = await schemaRes.json();
 
-        // Find matching model
         const modelInfo = Array.isArray(models)
           ? models.find((m: any) => m.id === modelId)
           : null;
 
         const title = modelInfo?.title || modelId.split('/').pop() || 'Unknown Model';
 
-        setModel(createDynamicModel(modelId, title, schema));
+        setModel(createVideoModel(modelId, title, schema));
       } catch (err) {
         console.error('Failed to load model:', err);
-        // Create a basic model anyway using the converted modelId
         const title = modelId.split('/').pop() || 'Unknown Model';
-        setModel(createDynamicModel(modelId, title));
+        setModel(createVideoModel(modelId, title));
       } finally {
         setLoading(false);
       }
@@ -162,9 +122,9 @@ export default function FluxModelPage() {
       <div className="flex flex-col items-center space-y-8">
         <h1 className="text-4xl font-bold text-center">{model.name}</h1>
         <p className="text-muted-foreground text-center max-w-2xl">
-          Generate images using {model.name}
+          Generate videos using {model.name}
         </p>
-        <ImageGenerator model={model} />
+        <VideoGenerator model={model} />
       </div>
     </main>
   );
