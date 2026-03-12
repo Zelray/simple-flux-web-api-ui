@@ -46,6 +46,38 @@ export default function SettingsPage() {
     });
   };
 
+  const handleBrowseFolder = async (key: keyof AppSettings['paths']) => {
+    // Check if the File System Access API is available
+    if ('showDirectoryPicker' in window) {
+      try {
+        const dirHandle = await (window as any).showDirectoryPicker({
+          mode: 'read',
+        });
+        // Get the directory name/path
+        handlePathChange(key, dirHandle.name);
+        toast({
+          title: "Folder selected",
+          description: `Selected: ${dirHandle.name}`,
+        });
+      } catch (err: any) {
+        // User cancelled the picker
+        if (err.name !== 'AbortError') {
+          toast({
+            title: "Could not select folder",
+            description: err.message,
+            variant: "destructive",
+          });
+        }
+      }
+    } else {
+      toast({
+        title: "Not supported",
+        description: "Folder picker not available. Please type the path manually.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const pathConfigs = [
     {
       key: 'saved_images' as const,
@@ -154,6 +186,7 @@ export default function SettingsPage() {
                       size="icon"
                       disabled={config.comingSoon}
                       title="Browse folder"
+                      onClick={() => handleBrowseFolder(config.key)}
                     >
                       <FolderOpen className="h-4 w-4" />
                     </Button>
